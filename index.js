@@ -1,30 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const app = express();
+const Person = require('./models/person');
 
-let phonebook = [
-  { 
-    "id": 1,
-    "name": "Arto Hellas", 
-    "number": "040-123456"
-  },
-  { 
-    "id": 2,
-    "name": "Ada Lovelace", 
-    "number": "39-44-5323523"
-  },
-  { 
-    "id": 3,
-    "name": "Dan Abramov", 
-    "number": "12-43-234345"
-  },
-  { 
-    "id": 4,
-    "name": "Mary Poppendieck", 
-    "number": "39-23-6423122"
-  }
-];
 
 function generateId() {
   const maxId = phonebook.length > 0
@@ -35,6 +15,7 @@ function generateId() {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('build'));
 
 app.use(morgan((tokens, req, res) => {
   let person = { name: req.body.name, number: req.body.number };
@@ -49,14 +30,16 @@ app.use(morgan((tokens, req, res) => {
   ].join(' ');
 }));
 
-app.get('/info', (request, response) => {
-  const requestTime = new Date().toString();
-  response.send(`<p>Phonebook has info for ${phonebook.length} people</p>
-                 <p>${requestTime}</p>`);
-});
+// app.get('/info', (request, response) => {
+//   const requestTime = new Date().toString();
+//   response.send(`<p>Phonebook has info for ${phonebook.length} people</p>
+//                  <p>${requestTime}</p>`);
+// });
 
 app.get('/api/persons', (request, response) => {
-  response.json(phonebook);
+  Person.find({}).then(persons => {
+    response.json(persons);
+  });
 });
 
 app.get('/api/persons/:id', (request, response) => {
@@ -72,24 +55,25 @@ app.delete('/api/persons/:id', (request, response) => {
 });
 
 app.post('/api/persons', (request, response) => {
-  const person = request.body;
-  if (!person.name) {
+  const body = request.body;
+
+  if (!body.name) {
     return response.status(400).json({
       error: 'name missing'
     })
-  } else if (phonebook.find(entry => entry.name === person.name)) {
-    return response.status(400).json({
-      error: 'name already exists in phonebook'
-    })
-  } else {
-    person.id = generateId();
-    phonebook.push(person);
-    response.json(person);
-  }
+  } 
+  
+  const person = new Person({
+    name: body.name,
+    number: body.number,
+  })
 
+  person.save().then(savedPerson => {
+    response.json(savedPerson);
+  })
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 })
